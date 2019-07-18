@@ -7,13 +7,13 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryViewController: UITableViewController {
     
-    var categories = [Category]()
+    let realm = try! Realm()
     
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    var categories : Results<Category>?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -24,23 +24,21 @@ class CategoryViewController: UITableViewController {
     
     //MARK: - Functions
     
-    func saveData() {
+    func saveData(category : Category) {
         do {
-            try context.save()
+            try realm.write {
+                realm.add(category)
+            }
         } catch {
-            print("Error saving context, \(error)")
+            print("Error saving category into Realm, \(error)")
         }
         
         self.tableView.reloadData()
     }
     
-    func loadData(with request: NSFetchRequest<Category> = Category.fetchRequest()) {
+    func loadData() {
         
-        do {
-            categories = try context.fetch(request)
-        } catch {
-            print("Error fetching List Items, \(error)")
-        }
+        categories = realm.objects(Category.self)
         
         tableView.reloadData()
         
@@ -56,10 +54,10 @@ class CategoryViewController: UITableViewController {
         let action = UIAlertAction.init(title: "Add", style: .default) { (action) in
             if let itemText = textField.text {
                 
-                let newCategory = Category(context: self.context)
+                let newCategory = Category()
                 newCategory.name = itemText
-                self.categories.append(newCategory)
-                self.saveData()
+    
+                self.saveData(category: newCategory)
             }
         }
         
@@ -79,24 +77,25 @@ class CategoryViewController: UITableViewController {
         let destinationVC = segue.destination as! TodoListViewController
         
         if let indexpath = tableView.indexPathForSelectedRow {
-            destinationVC.selectedCategory = categories[indexpath.row]
+            destinationVC.selectedCategory = categories?[indexpath.row]
         }
     }
     
     //MARK: - TableView DataSource Methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return categories.count
+        
+        return categories?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell  = tableView.dequeueReusableCell(withIdentifier: "categoryCell", for: indexPath)
         
-        let category = categories[indexPath.row]
-        
-        cell.textLabel?.text = category.name
-        
+        if let category = categories?[indexPath.row] {
+            cell.textLabel?.text = category.name
+        }
+
         return cell
         
     }
@@ -104,8 +103,9 @@ class CategoryViewController: UITableViewController {
     
     //MARK: - TableView Delegate Methods
     
-    override func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath) {
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         performSegue(withIdentifier: "goToItems", sender: self)
     }
+    
     
 }
